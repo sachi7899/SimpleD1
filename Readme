@@ -1,1 +1,33 @@
 Just for test
+
+python your_script.py --artifactory-api-url <your_artifactory_api_url> --artifactory-user <your_artifactory_user> --artifactory-apikey <your_artifactory_apikey>
+
+import argparse
+import requests
+
+def fetch_local_repo_keys_from_artifactory(api_url, user, apikey):
+    # Make an API request to Artifactory to fetch the repository keys
+    headers = {"Content-Type": "application/json"}
+    auth = (user, apikey)
+    response = requests.get(api_url, headers=headers, auth=auth)
+
+    if response.status_code == 200:
+        repo_keys = response.json().get("keys", [])
+        return repo_keys
+    else:
+        raise RuntimeError(f"Failed to fetch repository keys from Artifactory. Status code: {response.status_code}")
+
+def main():
+    parser = argparse.ArgumentParser(description="Your script description.")
+    parser.add_argument("--artifactory-api-url", required=True, help="Artifactory API URL to fetch repository keys")
+    parser.add_argument("--artifactory-user", required=True, help="Artifactory API user")
+    parser.add_argument("--artifactory-apikey", required=True, help="Artifactory API key")
+    args = parser.parse_args()
+
+    # Fetch LOCAL_REPO_KEYS from Artifactory API
+    local_repo_keys = fetch_local_repo_keys_from_artifactory(args.artifactory_api_url, args.artifactory_user, args.artifactory_apikey)
+
+    # The rest of your script
+
+if __name__ == "__main__":
+    main()
