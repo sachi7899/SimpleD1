@@ -11,3 +11,10 @@
         dest: "/destination/path/on/remote/{{ item.name }}/crt_file_{{ ansible_hostname }}.crt"
       with_items: "{{ servers }}"
       when: item.name != ansible_hostname
+
+
+tasks:
+    - name: Synchronize crt files between servers
+      command: rsync -W "/path/to/crt/files/{{ inventory_hostname }}/crt_file.crt" "/destination/path/on/remote/{{ inventory_hostname }}/crt_file_{{ item }}.crt"
+      with_items: "{{ servers }}"
+      when: item != inventory_hostname
