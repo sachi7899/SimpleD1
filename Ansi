@@ -1,0 +1,13 @@
+
+- name: Copy crt files among servers
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - servers.yml
+  tasks:
+    - name: Copy crt files to other servers
+      copy:
+        src: "/path/to/crt/files/{{ item.name }}/crt_file.crt"
+        dest: "/destination/path/on/remote/{{ item.name }}/crt_file_{{ ansible_hostname }}.crt"
+      with_items: "{{ servers }}"
+      when: item.name != ansible_hostname
