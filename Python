@@ -1,0 +1,12 @@
+import requests
+
+ARTIFACTORY_URL = 'https://artifa.com/artifactory'
+API_ENDPOINT = '/api/repositories?type=local'
+
+# Fetching repository keys from Artifactory API
+response = requests.get(f'{ARTIFACTORY_URL}{API_ENDPOINT}', auth=('admin', 'password'))  # Replace 'password' with the actual password
+repo_keys = [repo['key'] for repo in response.json()]
+
+# Iterate through each repository key and execute the requests.post command
+for repo_key in repo_keys:
+    requests.post(f'{ARTIFACTORY_URL}/api/federation/migrate/{repo_key}', auth=('admin', 'password'))  # Replace 'password' with the actual password
