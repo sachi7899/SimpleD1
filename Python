@@ -10,3 +10,27 @@ repo_keys = [repo['key'] for repo in response.json()]
 # Iterate through each repository key and execute the requests.post command
 for repo_key in repo_keys:
     requests.post(f'{ARTIFACTORY_URL}/api/federation/migrate/{repo_key}', auth=('admin', 'password'))  # Replace 'password' with the actual password
+
+
+
+
+
+
+
+import requests
+
+repos = [
+    {"name": "testsa-federated-repo", "json_data": '{"rclass":"federated","members":[{"url":"https://artifacts.ica.com/artifactory/addnew-libs-snapshot-local-npm","repo_name":"testsa-federated-repo"}]}'}
+    # Add more repositories as needed
+]
+
+for repo in repos:
+    url = "https://artifacts.ica.com/artifactory/api/repositories/{}".format(repo['name'])
+    headers = {"Content-Type": "application/json"}
+    data = repo["json_data"].replace('"repo_name":"testsa-federated-repo"', '"repo_name":"{}"'.format(repo["name"]))
+    response = requests.put(url, data=data, headers=headers, auth=("admin", ""))
+
+    if response.status_code == 200:
+        print("Repository {} updated successfully.".format(repo['name']))
+    else:
+        print("Failed to update repository {}. Status code: {}".format(repo['name'], response.status_code))
