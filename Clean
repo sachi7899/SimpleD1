@@ -1,0 +1,39 @@
+import requests
+
+def read_repositories_from_file(file_path):
+    with open(file_path, 'r') as file:
+        repositories = [line.strip().split(',') for line in file.readlines()]
+    return repositories
+
+def clean_docker():
+    base_url = 'http://localhost:8081/artifactory/'
+    headers = {
+        'content-type': 'text/plain',
+    }
+
+    repositories = read_repositories_from_file('repositories.txt')
+
+    for repo_details in repositories:
+        repo_name = repo_details[0]
+        path_match = repo_details[1]
+        before_time = repo_details[2]
+
+        data = {
+            "files": [
+                {
+                    "aql": "items.find",
+                    "repo": {"$eq": repo_name},
+                    "path": {"$match": path_match},
+                    "stat.downloaded": {"$before": before_time}
+                }
+            ]
+        }
+
+        myResp = requests.post(base_url + 'api/search/aql', json=data, auth=('admin', 'password'), headers=headers)
+
+        for result in eval(myResp.text)["results"]:
+            artifact_url = base_url + result['repo'] + '/' + result['path']
+            requests.delete(artifact_url, auth=('admin', 'password'))
+
+if __name__ == '__main__':
+    clean_docker()
