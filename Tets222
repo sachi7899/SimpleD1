@@ -1,0 +1,12 @@
+
+import requests
+from concurrent.futures import ThreadPoolExecutor
+
+
+
+num_threads = 10
+
+# Use ThreadPoolExecutor to manage the threads
+with ThreadPoolExecutor(max_workers=num_threads) as executor:
+    executor.map(migrate_repo, repo_keys)
+In this updated script:
