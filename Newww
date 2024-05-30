@@ -1,0 +1,13 @@
+ fetch_and_save_repo_keys():
+    try:
+        response = requests.get(ARTIFACTORY_URL + API_ENDPOINT, auth=AUTH)
+        if response.status_code == 200:
+            with open(REPO_KEYS_FILE, 'w') as f:
+                for repo in response.json():
+                    f.write(repo['key'] + '\n')
+            logging.info("Repository keys saved to repo_keys.txt")
+        else:
+            logging.error(f"Failed to fetch repository keys. Status code: {response.status_code}")
+            logging.error(f"Response content: {response.content}")
+    except Exception as e:
+        logging.error("An error occurred while fetching and saving repository keys: %s" % str(e))
