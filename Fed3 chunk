@@ -1,0 +1,60 @@
+import requests
+import logging
+import time
+import multiprocessing
+
+# Configuration
+ARTIFACTORY_URL = 'https://artifa.com/artifactory'
+AUTH = ('admin', 'password')  # Replace 'password' with the actual password
+REPO_KEYS_FILE = 'repo_keys.txt'
+CHUNK_SIZE = 500  # Number of repositories to process in each chunk
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def read_repo_keys():
+    try:
+        with open(REPO_KEYS_FILE, 'r') as f:
+            return [line.strip() for line in f]
+    except IOError:
+        logging.error("Failed to read repository keys from file.")
+        return []
+
+def migrate_repositories(repo_keys):
+    for repo_key in repo_keys:
+        migrate_repository(repo_key)
+
+def migrate_repository(repo_key):
+    start_time = time.time()
+    post_response = requests.post(f'{ARTIFACTORY_URL}/api/federation/migrate/{repo_key}', auth=AUTH)
+    elapsed_time = time.time() - start_time
+
+    if post_response.status_code == 200:
+        logging.info(f"Migration successful for repo_key: {repo_key}")
+    else:
+        logging.error(f"Migration failed for repo_key: {repo_key}")
+        logging.error(f"Response content: {post_response.content}")
+
+    logging.info(f"Time taken for migrating {repo_key}: {elapsed_time:.2f} seconds")
+
+def main():
+    repo_keys = read_repo_keys()
+    if not repo_keys:
+        logging.error("No repository keys to migrate.")
+        return
+
+    # Divide repo_keys into chunks of CHUNK_SIZE
+    chunks = [repo_keys[i:i+CHUNK_SIZE] for i in range(0, len(repo_keys), CHUNK_SIZE)]
+
+    processes = []
+    for chunk in chunks:
+        process = multiprocessing.Process(target=migrate_repositories, args=(chunk,))
+        processes.append(process)
+        process.start()
+
+    # Wait for all processes to finish
+    for process in processes:
+        process.join()
+
+if __name__ == '__main__':
+    main()
