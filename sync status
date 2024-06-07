@@ -1,0 +1,11 @@
+import json
+import subprocess
+
+def check_sync(repo_key):
+    curl_command = 'curl -s -u admin:<passwd> "{}/api/federation/status/repo/{}"'.format(ARTIFACTORY_URL, repo_key)
+    output = subprocess.check_output(curl_command, shell=True)
+    response_json = json.loads(output.decode('utf-8'))
+
+    # Assuming 'mirrorEventsStatusinfo' is the key containing sync status
+    sync_status = response_json.get('mirrorEventsStatusinfo', [{}])[0].get('status', 'UNKNOWN')
+    return sync_status
