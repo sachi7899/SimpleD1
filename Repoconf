@@ -1,0 +1,14 @@
+esponse requests. get (ÄRTIFÄCTORY URL + API ENDPOINT, , auth* (username, password) ) epo keys [repot *keyn for Yepo in response. j son ( ) ]
+
+##for repo_key in repo keys : 21
+
+or repo key in islice (repo keys, 1) :
+
+ur1 ARTIFACTORY URL } " . format (repo key) ur1 q https://artifacts.horxzon.diff.bankofamerica.com/artifactory/{repo key}" headers { : " application/ j son" } j son data = json.dumps "rclass" : "federated" , "members" : [ { ARTIFACTORY URL + "/{}" . format post response — requests . post (url, data=j son data, headers=headers, , Passwordld' post response requests . post (url, data=j son data, headers—headers, password))
+
+	if post response. status code	200:
+
+	print ( ' Replication configuration setup successfully for repo key:	+ repo key)
+
+print ( 'Replication configuration setup failed for repo key:	+ repo key) print ( ' Responce content: ' post response . content)
+
