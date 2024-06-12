@@ -1,14 +1,95 @@
-esponse requests. get (ÄRTIFÄCTORY URL + API ENDPOINT, , auth* (username, password) ) epo keys [repot *keyn for Yepo in response. j son ( ) ]
+import requests
+import logging
+import time
+import subprocess
+import json
 
-##for repo_key in repo keys : 21
+# Configuration
+PRIMARY_ARTIFACTORY_URL = 'https://artifa.com/artifactory'
+DR_ARTIFACTORY_URL = 'https://dr.artifa.com/artifactory'
+PRIMARY_API_ENDPOINT = '/api/repositories?type=local'
+DR_API_ENDPOINT = '/api/repositories?type=local'
+PRIMARY_AUTH = ('admin', 'password')  # Replace 'password' with the actual password for primary
+DR_AUTH = ('admin', 'dr_password')    # Replace 'dr_password' with the actual password for DR
+REPO_KEYS_FILE = 'repo_keys.txt'
+BASE_URL = 'https://artifacts.ica.com/artifactory/'  # Base URL for updating repositories
 
-or repo key in islice (repo keys, 1) :
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-ur1 ARTIFACTORY URL } " . format (repo key) ur1 q https://artifacts.horxzon.diff.bankofamerica.com/artifactory/{repo key}" headers { : " application/ j son" } j son data = json.dumps "rclass" : "federated" , "members" : [ { ARTIFACTORY URL + "/{}" . format post response — requests . post (url, data=j son data, headers=headers, , Passwordld' post response requests . post (url, data=j son data, headers—headers, password))
+def migrate_repository(repo_key, target_url, auth):
+    start_time = time.time()
+    post_response = requests.post('{}/api/federation/migrate/{}'.format(target_url, repo_key), auth=auth)
+    elapsed_time = time.time() - start_time
 
-	if post response. status code	200:
+    if post_response.status_code == 200:
+        logging.info("Migration successful for repo_key: {} to {}".format(repo_key, target_url))
+    else:
+        logging.error("Migration failed for repo_key: {} to {}".format(repo_key, target_url))
+        logging.error("Response content: {}".format(post_response.content))
 
-	print ( ' Replication configuration setup successfully for repo key:	+ repo key)
+    logging.info("Time taken for migrating {}: {:.2f} seconds".format(repo_key, elapsed_time))
+    return post_response.status_code == 200
 
-print ( 'Replication configuration setup failed for repo key:	+ repo key) print ( ' Responce content: ' post response . content)
+def check_sync(repo_key, target_url, auth):
+    curl_command = 'curl -s -u {}:{} "{}/api/federation/status/repo/{}"'.format(auth[0], auth[1], target_url, repo_key)
+    output = subprocess.check_output(curl_command, shell=True)
+    response_json = json.loads(output.decode('utf-8'))
 
+    # Assuming 'mirrorEventsStatusinfo' is the key containing sync status
+    sync_status = response_json.get('mirrorEventsStatusinfo', [{}])[0].get('status', 'UNKNOWN')
+    return sync_status
+
+def configure_repository():
+    try:
+        with open(REPO_KEYS_FILE, 'r') as file:
+            repository_names = [line.strip() for line in file if line.strip()]
+    except IOError:
+        logging.error("Failed to read repository keys from file: {}".format(REPO_KEYS_FILE))
+        return
+
+    for repo_name in repository_names:
+        # Construct the JSON data for each repository
+        json_data = json.dumps({"rclass": "federated", "members": [{"url": "https://artifacts.ica.com/artifactory/{}".format(repo_name)}]})
+        
+        # Send the request to update the repository
+        url = "{}api/repositories/{}".format(BASE_URL, repo_name)
+        headers = {"Content-Type": "application/json"}
+        response = requests.put(url, data=json_data, headers=headers, auth=PRIMARY_AUTH)
+        
+        if response.status_code == 200:
+            logging.info("Repository {} updated successfully.".format(repo_name))
+        else:
+            logging.error("Failed to update repository {}. Status code: {}".format(repo_name, response.status_code))
+            logging.error("Response content: {}".format(response.content))
+
+def migrate_repositories_from_file():
+    try:
+        with open(REPO_KEYS_FILE, 'r') as f:
+            repo_keys = [line.strip() for line in f if line.strip()]
+    except IOError:
+        logging.error("Failed to read repository keys from file: {}".format(REPO_KEYS_FILE))
+        return
+
+    if not repo_keys:
+        logging.error("No repository keys found in file to migrate.")
+        return
+
+    for repo_key in repo_keys:
+        primary_migration_status = migrate_repository(repo_key, PRIMARY_ARTIFACTORY_URL, PRIMARY_AUTH)
+        dr_migration_status = migrate_repository(repo_key, DR_ARTIFACTORY_URL, DR_AUTH)
+        
+        # Ensure configure_repository is called regardless of migration status
+        configure_repository()
+
+    logging.info("Checking synchronization status for all repositories...")
+    for repo_key in repo_keys:
+        primary_sync_status = check_sync(repo_key, PRIMARY_ARTIFACTORY_URL, PRIMARY_AUTH)
+        dr_sync_status = check_sync(repo_key, DR_ARTIFACTORY_URL, DR_AUTH)
+        logging.info("Sync status for repo_key {}: Primary: {}, DR: {}".format(repo_key, primary_sync_status, dr_sync_status))
+
+def main():
+    migrate_repositories_from_file()
+
+if __name__ == '__main__':
+    main()
