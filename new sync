@@ -1,7 +1,7 @@
-import subprocess
+import requests
 import logging
 import time
-import requests
+import subprocess
 import json
 
 # Configuration
@@ -33,21 +33,25 @@ def migrate_repository(repo_key, target_url, auth):
 
 def check_sync(repo_key, target_url, auth):
     try:
-        response = requests.get('{}/api/federation/status/repo/{}'.format(target_url, repo_key), auth=auth)
-        response.raise_for_status()  # Raise an exception for HTTP errors
-
-        response_json = response.json()
-        logging.debug("Sync status response for {}: {}".format(repo_key, response_json))
-
-        # Extract sync status from the JSON response
-        sync_statuses = [status_info['status'] for status_info in response_json.get('mirrorEventsStatusInfo', [])]
+        # Extract username and password from the auth tuple
+        username, password = auth
         
-        if sync_statuses:
-            return sync_statuses[0]  # Assuming we're interested in the first status
+        # Construct the curl command
+        curl_command = 'curl -s -u {}:{} "{}/api/federation/status/repo/{}" | jq -r \'mirrorEventsStatusInfo[].status\''.format(
+            username, password, target_url, repo_key)
+        
+        # Execute the curl command and capture the output
+        output = subprocess.check_output(curl_command, shell=True).decode('utf-8').strip()
+        
+        # Log the output for debugging
+        logging.debug("Sync status response for {}: {}".format(repo_key, output))
+        
+        # Check if the output contains 'SYNC'
+        if 'SYNC' in output:
+            return 'SYNC'
         else:
-            logging.error("No status information found for repo_key: {}".format(repo_key))
             return 'UNKNOWN'
-    except requests.RequestException as e:
+    except subprocess.CalledProcessError as e:
         logging.error("Failed to check sync status for {}: {}".format(repo_key, str(e)))
         return 'ERROR'
 
