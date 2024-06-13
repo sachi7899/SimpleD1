@@ -1,0 +1,18 @@
+def check_sync(repo_key):
+    try:
+        curl_command = f'curl -s -u {AUTH[0]}:{AUTH[1]} "{ARTIFACTORY_URL}/api/federation/status/repo/{repo_key}"'
+        output = subprocess.check_output(curl_command, shell=True)
+        response_json = json.loads(output.decode('utf-8'))
+
+        # Log the full JSON response for debugging
+        logging.debug(f"Full JSON response for {repo_key}: {json.dumps(response_json, indent=2)}")
+
+        # Extract sync status
+        sync_status = response_json.get('mirrorEventsStatusinfo', [{}])[0].get('status', 'UNKNOWN')
+        return sync_status
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to execute curl command for {repo_key}: {e}")
+        return 'ERROR'
+    except json.JSONDecodeError as e:
+        logging.error(f"Failed to decode JSON response for {repo_key}: {e}")
+        return 'ERROR'
