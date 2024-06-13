@@ -1,0 +1,50 @@
+import subprocess
+
+def check_sync(repo_key, target_url, auth):
+    try:
+        # Extract username and password from the auth tuple
+        username, password = auth
+        
+        # Construct the curl command
+        curl_command = 'curl -s -u {}:{} "{}/api/federation/status/repo/{}"'.format(
+            username, password, target_url, repo_key)
+        
+        # Execute the curl command and capture the output
+        curl_process = subprocess.Popen(curl_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        curl_output, curl_error = curl_process.communicate()
+        
+        # Check if curl command executed successfully
+        if curl_process.returncode != 0:
+            raise subprocess.CalledProcessError(curl_process.returncode, curl_command, curl_error)
+        
+        # Construct the jq command to parse the JSON response
+        jq_command = 'jq -r \'mirrorEventsStatusInfo[].status\''
+        
+        # Execute the jq command and capture the output
+        jq_process = subprocess.Popen(jq_command, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        jq_output, jq_error = jq_process.communicate(input=curl_output)
+        
+        # Check if jq command executed successfully
+        if jq_process.returncode != 0:
+            raise subprocess.CalledProcessError(jq_process.returncode, jq_command, jq_error)
+        
+        # Decode output from bytes to string
+        output = jq_output.strip()
+        
+        # Print the output
+        print("Sync status response for {}: {}".format(repo_key, output))
+        
+        return output
+    except subprocess.CalledProcessError as e:
+        print("Error occurred: {}".format(e))
+        return 'ERROR'
+    except Exception as e:
+        print("Error occurred: {}".format(e))
+        return 'ERROR'
+
+# Example usage
+repo_key = 'example-repo'
+target_url = 'https://artifacts.com/artifactory'
+auth = ('admin', 'password')  # Replace with actual username and password
+
+check_sync(repo_key, target_url, auth)
