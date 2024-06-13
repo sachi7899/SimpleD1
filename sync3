@@ -1,0 +1,33 @@
+import subprocess
+
+def check_sync(repo_key, target_url, auth):
+    try:
+        # Extract username and password from the auth tuple
+        username, password = auth
+        
+        # Construct the curl command
+        curl_command = ['curl', '-s', '-u', '{}:{}'.format(username, password),
+                        '{}/api/federation/status/repo/{}'.format(target_url, repo_key),
+                        '|', 'jq', '-r', '\'mirrorEventsStatusInfo[].status\'']
+        
+        # Execute the curl command and capture the output
+        process = subprocess.Popen(curl_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, error = process.communicate()
+        
+        # Decode output from bytes to string
+        output = output.decode('utf-8').strip()
+        
+        # Print the output
+        print("Sync status response for {}: {}".format(repo_key, output))
+        
+        return output
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")
+        return 'ERROR'
+
+# Example usage
+repo_key = 'example-repo'
+target_url = 'https://artifacts.com/artifactory'
+auth = ('admin', 'password')  # Replace with actual username and password
+
+check_sync(repo_key, target_url, auth)
