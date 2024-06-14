@@ -1,0 +1,119 @@
+import requests
+import logging
+import time
+import json
+
+# Configuration
+PRIMARY_ARTIFACTORY_URL = 'https://artifa.com/artifactory'
+DR_ARTIFACTORY_URL = 'https://dr.artifa.com/artifactory'
+PRIMARY_API_ENDPOINT = '/api/repositories?type=local'
+DR_API_ENDPOINT = '/api/repositories?type=local'
+AUTH = ('admin', 'password')  # Replace 'password' with the actual password
+BASE_URL = 'https://artifacts.ica.com/artifactory/'  # Base URL for updating repositories
+BATCH_SIZE = 50  # Number of repositories to process in each batch
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def fetch_repo_keys():
+    try:
+        response = requests.get(PRIMARY_ARTIFACTORY_URL + PRIMARY_API_ENDPOINT, auth=AUTH)
+        if response.status_code == 200:
+            repo_keys = [repo['key'] for repo in response.json()]
+            logging.info("Fetched repository keys successfully.")
+            return repo_keys
+        else:
+            logging.error("Failed to fetch repository keys. Status code: %d", response.status_code)
+            logging.error("Response content: %s", response.content)
+            return []
+    except Exception as e:
+        logging.error("An error occurred while fetching repository keys: %s", e)
+        return []
+
+def migrate_repository(repo_key, target_url):
+    start_time = time.time()
+    post_response = requests.post('{}/api/federation/migrate/{}'.format(target_url, repo_key), auth=AUTH)
+    elapsed_time = time.time() - start_time
+
+    if post_response.status_code == 200:
+        logging.info("Migration successful for repo_key: {} to {}".format(repo_key, target_url))
+    else:
+        logging.error("Migration failed for repo_key: {} to {}".format(repo_key, target_url))
+        logging.error("Response content: {}".format(post_response.content))
+
+    logging.info("Time taken for migrating {}: {:.2f} seconds".format(repo_key, elapsed_time))
+    return post_response.status_code == 200
+
+def check_sync(repo_key, target_url):
+    try:
+        url = "{}/api/federation/status/repo/{}".format(target_url, repo_key)
+        response = requests.get(url, auth=AUTH)
+        response.raise_for_status()
+        response_json = response.json()
+        logging.info("Raw output for {}: {}".format(repo_key, json.dumps(response_json, indent=2)))
+
+        status_info = response_json.get('mirrorEventsStatusInfo', [])
+        if status_info:
+            status = status_info[0].get('status', 'UNKNOWN')
+            logging.info("Sync status for {}: {}".format(repo_key, status))
+            return status
+        else:
+            logging.info("No status information available for {}".format(repo_key))
+            return 'UNKNOWN'
+    except requests.RequestException as e:
+        logging.error("Error occurred: {}".format(str(e)))
+        return 'ERROR'
+
+def configure_repository(repo_key):
+    json_data = json.dumps({
+        "rclass": "federated",
+        "members": [
+            {"url": "https://artifacts.ica.com/artifactory/{}".format(repo_key)}
+        ]
+    })
+    
+    url = "{}{}".format(BASE_URL, repo_key)
+    headers = {"Content-Type": "application/json"}
+    response = requests.put(url, data=json_data, headers=headers, auth=AUTH)
+    
+    if response.status_code == 200:
+        logging.info("Repository {} updated successfully.".format(repo_key))
+    else:
+        logging.error("Failed to update repository {}. Status code: {}".format(repo_key, response.status_code))
+        logging.error("Response content: {}".format(response.content))
+
+def process_repositories(repo_keys):
+    total_repos = len(repo_keys)
+    for start in range(0, total_repos, BATCH_SIZE):
+        batch = repo_keys[start:start + BATCH_SIZE]
+        logging.info("Processing batch: {} to {}".format(start + 1, start + len(batch)))
+        
+        # Configure and migrate repositories in the current batch
+        for repo_key in batch:
+            configure_repository(repo_key)
+            if migrate_repository(repo_key, PRIMARY_ARTIFACTORY_URL):
+                logging.info("Initial migration to primary Artifactory completed for repo_key: {}".format(repo_key))
+            if migrate_repository(repo_key, DR_ARTIFACTORY_URL):
+                logging.info("Migration to DR Artifactory completed for repo_key: {}".format(repo_key))
+        
+        # Check synchronization status for the current batch
+        logging.info("Checking synchronization status for current batch...")
+        all_synced = False
+        while not all_synced:
+            all_synced = True
+            for repo_key in batch:
+                primary_sync_status = check_sync(repo_key, PRIMARY_ARTIFACTORY_URL)
+                if primary_sync_status != 'DONE':
+                    all_synced = False
+                    break
+            if not all_synced:
+                logging.info("Not all repositories are synchronized yet. Waiting before re-checking...")
+                time.sleep(60)  # Wait for 1 minute before re-checking
+
+def main():
+    repo_keys = fetch_repo_keys()
+    if repo_keys:
+        process_repositories(repo_keys)
+
+if __name__ == '__main__':
+    main()
