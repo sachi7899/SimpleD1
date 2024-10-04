@@ -1,0 +1,35 @@
+def check_sync(repo_keys, target_url, max_retries=5, wait_time=60):
+    all_synced = True
+    for repo_key in repo_keys:
+        retries = 0
+        while retries < max_retries:
+            try:
+                url = "{}/api/federation/status/repo/{}".format(target_url, repo_key)
+                response = requests.get(url, auth=AUTH)
+                response.raise_for_status()
+                response_json = response.json()
+                logging.info("Raw output for {}: {}".format(repo_key, json.dumps(response_json, indent=2)))
+
+                status_info = response_json.get('mirrorEventsStatusInfo', [])
+                if status_info:
+                    status = status_info[0].get('status', 'UNKNOWN')
+                    logging.info("Sync status for {}: {}".format(repo_key, status))
+                    if status == 'DONE':
+                        break  # Sync is done, move to the next repo
+                    else:
+                        all_synced = False
+                else:
+                    logging.info("No status information available for {}".format(repo_key))
+                    all_synced = False
+
+                retries += 1
+                if retries < max_retries:
+                    logging.info("Not synchronized yet. Retry {}/{}. Waiting {} seconds...".format(retries, max_retries, wait_time))
+                    time.sleep(wait_time)
+            except requests.RequestException as e:
+                logging.error("Error occurred: {}".format(str(e)))
+                all_synced = False
+                break  # Break the retry loop on error
+        else:
+            logging.warning("Max retries reached for {}. Moving to next repository.".format(repo_key))
+    return all_synced
