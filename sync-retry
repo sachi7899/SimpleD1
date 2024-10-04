@@ -33,3 +33,35 @@ def check_sync(repo_keys, target_url, max_retries=5, wait_time=60):
         else:
             logging.warning("Max retries reached for {}. Moving to next repository.".format(repo_key))
     return all_synced
+===================
+
+
+def process_repositories(repo_keys):
+    total_repos = len(repo_keys)
+    max_batch_retries = 2  # Maximum retries for batch sync check
+    for start in range(0, total_repos, BATCH_SIZE):
+        batch = repo_keys[start:start + BATCH_SIZE]
+        logging.info("Processing batch: {} to {}".format(start + 1, start + len(batch)))
+
+        # Configure and migrate repositories in the current batch
+        configure_repository(batch)
+        for repo_key in batch:
+            if migrate_repository(repo_key, PRIMARY_ARTIFACTORY_URL):
+                logging.info("Initial migration to primary Artifactory completed for repo_key: {}".format(repo_key))
+            if migrate_repository(repo_key, DR_ARTIFACTORY_URL):
+                logging.info("Migration to DR Artifactory completed for repo_key: {}".format(repo_key))
+
+        # Check synchronization status for the current batch
+        logging.info("Checking synchronization status for current batch...")
+        batch_synced = False
+        batch_retry_count = 0
+
+        while not batch_synced and batch_retry_count < max_batch_retries:
+            batch_synced = check_sync(batch, PRIMARY_ARTIFACTORY_URL)
+            if not batch_synced:
+                batch_retry_count += 1
+                logging.info("Not all repositories in the batch are synchronized yet. Retry {}/{}.".format(batch_retry_count, max_batch_retries))
+                time.sleep(60)  # Wait for 1 minute before re-checking
+
+        if not batch_synced:
+            logging.warning("Batch not fully synchronized after {} retries. Moving to the next batch.".format(max_batch_retries))
