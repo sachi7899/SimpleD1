@@ -9,3 +9,15 @@
     }
   ]
 }
+
+
+
+
+{
+  "files": [
+    {
+      "pattern": "*",
+      "aql": "items.find({\"type\":\"file\"}).include(\"name\",\"repo\",\"path\",\"size\").sort({\"$desc\":[\"size\"]}).limit(25)"
+    }
+  ]
+}
