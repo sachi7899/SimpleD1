@@ -1,6 +1,9 @@
 
 items.find({}).include("name", "repo", "path", "size").sort({"$desc": ["size"]}).limit(25)
 
+items.find({
+    "type": "file"
+}).include("name", "repo", "path", "size").sort({"$desc": ["size"]}).limit(25)
 
 Just for test
 
