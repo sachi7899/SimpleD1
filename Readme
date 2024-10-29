@@ -1,3 +1,7 @@
+
+items.find({}).include("name", "repo", "path", "size").sort({"$desc": ["size"]}).limit(25)
+
+
 Just for test
 
 python your_script.py --artifactory-api-url <your_artifactory_api_url> --artifactory-user <your_artifactory_user> --artifactory-apikey <your_artifactory_apikey>
