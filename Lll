@@ -1,0 +1,11 @@
+{
+  "files": [
+    {
+      "pattern": "*",
+      "sort_by": "size",
+      "limit": 25,
+      "repo": "my-repo",  // Optional: specify a repository if needed
+      "aql": "items.find({\"type\":\"file\"}).include(\"name\",\"repo\",\"path\",\"size\").sort({\"$desc\":[\"size\"]})"
+    }
+  ]
+}
