@@ -7,3 +7,12 @@ def load_repo_keys(file_path):
     except Exception as e:
         logging.error("Failed to read repository keys from file: {}".format(e))
         return []
+
+
+def main():
+    input_file = "repo_keys.txt"  # Replace with the actual path to your input file
+    repo_keys = load_repo_keys(input_file)
+    if repo_keys:
+        process_repositories(repo_keys)
+    else:
+        logging.error("No repository keys to process. Please check the input file.")
