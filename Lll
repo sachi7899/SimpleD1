@@ -23,4 +23,10 @@
 }
 
 
+for repo_key in $(cat repo-keys.txt); do
+    curl -u "admin:password" -X POST "https://artifactory.example.com/artifactory/api/federation/fullSync/$repo_key"
+done
+
+
+
 jf rt curl -X POST api/search/aql -H "Content-Type: text/plain" -d 'items.find({"type": "file"}).include("name", "repo", "path", "size").sort({"$desc": ["size"]}).limit(25)'
