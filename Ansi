@@ -18,3 +18,6 @@ tasks:
       command: rsync -W "/path/to/crt/files/{{ inventory_hostname }}/crt_file.crt" "/destination/path/on/remote/{{ inventory_hostname }}/crt_file_{{ item }}.crt"
       with_items: "{{ servers }}"
       when: item != inventory_hostname
+
+
+https://www.sqlite.org/2025/sqlite-tools-linux-x64-3500400.zip
