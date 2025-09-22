@@ -1,0 +1,25 @@
+#!/bin/bash
+
+ART_URL="http://<your-artifactory-url>/artifactory"
+USER="<your-username>"
+PASS="<your-password>"
+
+# Get all repositories
+repos=$(curl -s -u $USER:$PASS "$ART_URL/api/repositories" | jq -r '.[] | select(.type=="REMOTE") | .key')
+
+for repo in $repos; do
+    # Get repo config
+    config=$(curl -s -u $USER:$PASS "$ART_URL/api/repositories/$repo")
+
+    # Extract remote URL
+    url=$(echo "$config" | jq -r '.url')
+
+    # Check if url contains ml.com or baml.com
+    if [[ "$url" == *"ml.com"* || "$url" == *"baml.com"* ]]; then
+        echo "👉 Making $repo online (URL: $url)"
+        # Update config with offline=false
+        echo "$config" | jq '.offline=false' \
+        | curl -s -u $USER:$PASS -X POST -H "Content-Type: application/json" \
+          -d @- "$ART_URL/api/repositories/$repo" > /dev/null
+    fi
+done
